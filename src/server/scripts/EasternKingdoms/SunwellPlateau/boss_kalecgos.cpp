@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2017 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -160,7 +160,7 @@ struct boss_kalecgos : public BossAI
         events.ScheduleEvent(EVENT_CHECK_TIMER, Seconds(1));
     }
 
-    void EnterEvadeMode(EvadeReason /*why*/)
+    void EnterEvadeMode(EvadeReason /*why*/) override
     {
         if (events.IsInPhase(PHASE_OUTRO))
             return;
@@ -208,11 +208,11 @@ struct boss_kalecgos : public BossAI
             damage = 0;
     }
 
-    void EnterCombat(Unit* /*who*/) override
+    void JustEngagedWith(Unit* /*who*/) override
     {
         instance->SendEncounterUnit(ENCOUNTER_FRAME_ENGAGE, me);
         Talk(SAY_EVIL_AGGRO);
-        _EnterCombat();
+        _JustEngagedWith();
 
         if (Creature* kalecgosHuman = me->SummonCreature(NPC_KALECGOS_HUMAN, KalecgosSummonPos, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 1000))
             if (Creature* sathrovar = instance->GetCreature(DATA_SATHROVARR))
@@ -311,7 +311,7 @@ struct boss_kalecgos : public BossAI
                 case EVENT_OUTRO_START:
                     events.Reset();
                     events.SetPhase(PHASE_OUTRO);
-                    me->setRegeneratingHealth(false);
+                    me->SetRegenerateHealth(false);
                     me->SetReactState(REACT_PASSIVE);
                     me->InterruptNonMeleeSpells(true);
                     me->RemoveAllAttackers();
@@ -461,13 +461,13 @@ struct boss_sathrovarr : public BossAI
         events.ScheduleEvent(EVENT_CHECK_TIMER, Seconds(1));
     }
 
-    void EnterCombat(Unit* /*who*/) override
+    void JustEngagedWith(Unit* /*who*/) override
     {
-        _EnterCombat();
+        _JustEngagedWith();
         Talk(SAY_SATH_AGGRO);
     }
 
-    void EnterEvadeMode(EvadeReason why)
+    void EnterEvadeMode(EvadeReason why) override
     {
         if (Creature* kalecgos = instance->GetCreature(DATA_KALECGOS_DRAGON))
             kalecgos->AI()->EnterEvadeMode(why);

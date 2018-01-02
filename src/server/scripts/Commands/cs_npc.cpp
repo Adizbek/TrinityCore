@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2017 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -27,6 +27,7 @@ EndScriptData */
 #include "CreatureAI.h"
 #include "CreatureGroups.h"
 #include "DatabaseEnv.h"
+#include "GameTime.h"
 #include "Language.h"
 #include "Log.h"
 #include "Map.h"
@@ -50,7 +51,7 @@ struct EnumName
 #define CREATE_NAMED_ENUM(VALUE) { VALUE, STRINGIZE(VALUE) }
 
 #define NPCFLAG_COUNT   24
-#define FLAGS_EXTRA_COUNT 20
+#define FLAGS_EXTRA_COUNT 21
 
 EnumName<NPCFlags, int32> const npcFlagTexts[NPCFLAG_COUNT] =
 {
@@ -173,7 +174,8 @@ EnumName<CreatureFlagsExtra> const flagsExtra[FLAGS_EXTRA_COUNT] =
     CREATE_NAMED_ENUM(CREATURE_FLAG_EXTRA_NO_PLAYER_DAMAGE_REQ),
     CREATE_NAMED_ENUM(CREATURE_FLAG_EXTRA_DUNGEON_BOSS),
     CREATE_NAMED_ENUM(CREATURE_FLAG_EXTRA_IGNORE_PATHFINDING),
-    CREATE_NAMED_ENUM(CREATURE_FLAG_EXTRA_IMMUNITY_KNOCKBACK)
+    CREATE_NAMED_ENUM(CREATURE_FLAG_EXTRA_IMMUNITY_KNOCKBACK),
+    CREATE_NAMED_ENUM(CREATURE_FLAG_EXTRA_USE_OFFHAND_ATTACK)
 };
 
 bool HandleNpcSpawnGroup(ChatHandler* handler, char const* args)
@@ -200,13 +202,13 @@ bool HandleNpcSpawnGroup(ChatHandler* handler, char const* args)
         else
             groupId = atoi(thisArg.c_str());
 
-        arg = strtok(NULL, " ");
+        arg = strtok(nullptr, " ");
     }
 
     Player* player = handler->GetSession()->GetPlayer();
 
     std::vector <WorldObject*> creatureList;
-    if (!sObjectMgr->SpawnGroupSpawn(groupId, player->GetMap(), ignoreRespawn, force, &creatureList))
+    if (!player->GetMap()->SpawnGroupSpawn(groupId, ignoreRespawn, force, &creatureList))
     {
         handler->PSendSysMessage(LANG_SPAWNGROUP_BADGROUP, groupId);
         handler->SetSentErrorMessage(true);
@@ -246,7 +248,7 @@ bool HandleNpcDespawnGroup(ChatHandler* handler, char const* args)
 
     Player* player = handler->GetSession()->GetPlayer();
 
-    if (!sObjectMgr->SpawnGroupDespawn(groupId, player->GetMap(), deleteRespawnTimes))
+    if (!player->GetMap()->SpawnGroupDespawn(groupId, deleteRespawnTimes))
     {
         handler->PSendSysMessage(LANG_SPAWNGROUP_BADGROUP, groupId);
         handler->SetSentErrorMessage(true);
@@ -562,6 +564,9 @@ public:
             ObjectGuid::LowType lowguid = atoul(cId);
             if (!lowguid)
                 return false;
+            // force respawn to make sure we find something
+            handler->GetSession()->GetPlayer()->GetMap()->RemoveRespawnTime(SPAWN_TYPE_CREATURE, lowguid, true);
+            // then try to find it
             creature = handler->GetCreatureFromPlayerMapByDbGuid(lowguid);
         }
         else
@@ -773,7 +778,7 @@ public:
         uint32 nativeid = target->GetNativeDisplayId();
         uint32 Entry = target->GetEntry();
 
-        int64 curRespawnDelay = target->GetRespawnCompatibilityMode() ? target->GetRespawnTimeEx() - time(nullptr) : target->GetMap()->GetCreatureRespawnTime(target->GetSpawnId()) - time(nullptr);
+        int64 curRespawnDelay = target->GetRespawnCompatibilityMode() ? target->GetRespawnTimeEx() - GameTime::GetGameTime() : target->GetMap()->GetCreatureRespawnTime(target->GetSpawnId()) - GameTime::GetGameTime();
 
         if (curRespawnDelay < 0)
             curRespawnDelay = 0;
@@ -783,8 +788,8 @@ public:
         handler->PSendSysMessage(LANG_NPCINFO_CHAR, target->GetSpawnId(), target->GetGUID().GetCounter(), faction, npcflags, Entry, displayid, nativeid);
         if (target->GetCreatureData() && target->GetCreatureData()->spawnGroupData->groupId)
         {
-            if (SpawnGroupTemplateData const* groupData = target->GetCreatureData()->spawnGroupData)
-                handler->PSendSysMessage(LANG_SPAWNINFO_GROUP_ID, groupData->name.c_str(), groupData->groupId, groupData->flags, groupData->isActive);
+            SpawnGroupTemplateData const* const groupData = target->GetCreatureData()->spawnGroupData;
+            handler->PSendSysMessage(LANG_SPAWNINFO_GROUP_ID, groupData->name.c_str(), groupData->groupId, groupData->flags, target->GetMap()->IsSpawnGroupActive(groupData->groupId));
         }
         handler->PSendSysMessage(LANG_SPAWNINFO_COMPATIBILITY_MODE, target->GetRespawnCompatibilityMode());
         handler->PSendSysMessage(LANG_NPCINFO_LEVEL, target->getLevel());

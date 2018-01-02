@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2017 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
  * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -101,7 +101,7 @@ struct TempSummonData
 // DB scripting commands
 enum ScriptCommands
 {
-    SCRIPT_COMMAND_TALK                  = 0,                // source/target = Creature, target = any, datalong = talk type (0=say, 1=whisper, 2=yell, 3=emote text, 4=boss emote text), datalong2 & 1 = player talk (instead of creature), dataint = string_id
+    SCRIPT_COMMAND_TALK                  = 0,                // source/target = Creature, target = any, datalong = talk type (see ChatType enum), datalong2 & 1 = player talk (instead of creature), dataint = string_id
     SCRIPT_COMMAND_EMOTE                 = 1,                // source/target = Creature, datalong = emote id, datalong2 = 0: set emote state; > 0: play emote state
     SCRIPT_COMMAND_FIELD_SET             = 2,                // source/target = Creature, datalong = field id, datalog2 = value
     SCRIPT_COMMAND_MOVE_TO               = 3,                // source/target = Creature, datalong2 = time to reach, x/y/z = destination
@@ -532,6 +532,11 @@ struct TrinityString
     std::vector<std::string> Content;
 };
 
+struct QuestGreetingLocale
+{
+    std::vector<std::string> greeting;
+};
+
 typedef std::map<ObjectGuid, ObjectGuid> LinkedRespawnContainer;
 typedef std::unordered_map<uint32, CreatureTemplate> CreatureTemplateContainer;
 typedef std::unordered_map<uint32, CreatureAddon> CreatureTemplateAddonContainer;
@@ -574,6 +579,7 @@ struct PointOfInterestLocale
 };
 
 typedef std::unordered_map<uint32, PointOfInterestLocale> PointOfInterestLocaleContainer;
+typedef std::unordered_map<uint32, QuestGreetingLocale> QuestGreetingLocaleContainer;
 
 typedef std::unordered_map<uint32, TrinityString> TrinityStringContainer;
 
@@ -794,6 +800,19 @@ struct QuestPOIWrapper
 
 typedef std::unordered_map<uint32, QuestPOIWrapper> QuestPOIContainer;
 
+struct QuestGreeting
+{
+    uint16 greetEmoteType;
+    uint32 greetEmoteDelay;
+    std::string greeting;
+
+    QuestGreeting() : greetEmoteType(0), greetEmoteDelay(0) { }
+    QuestGreeting(uint16 _greetEmoteType, uint32 _greetEmoteDelay, std::string _greeting)
+        : greetEmoteType(_greetEmoteType), greetEmoteDelay(_greetEmoteDelay), greeting(_greeting) { }
+};
+
+typedef std::unordered_map<uint8, std::unordered_map<uint32, QuestGreeting>> QuestGreetingContainer;
+
 struct GraveyardData
 {
     uint32 safeLocId;
@@ -999,6 +1018,7 @@ class TC_GAME_API ObjectMgr
         }
 
         GossipText const* GetGossipText(uint32 Text_ID) const;
+        QuestGreeting const* GetQuestGreeting(ObjectGuid guid) const;
 
         WorldSafeLocsEntry const* GetDefaultGraveyard(uint32 team) const;
         WorldSafeLocsEntry const* GetClosestGraveyard(float x, float y, float z, uint32 MapId, uint32 team) const;
@@ -1156,6 +1176,7 @@ class TC_GAME_API ObjectMgr
         void LoadPageTextLocales();
         void LoadGossipMenuItemsLocales();
         void LoadPointOfInterestLocales();
+        void LoadQuestGreetingsLocales();
         void LoadInstanceTemplate();
         void LoadInstanceEncounters();
         void LoadMailLevelRewards();
@@ -1167,6 +1188,7 @@ class TC_GAME_API ObjectMgr
         void LoadAreaTriggerTeleports();
         void LoadAccessRequirements();
         void LoadQuestAreaTriggers();
+        void LoadQuestGreetings();
         void LoadAreaTriggerScripts();
         void LoadTavernAreaTriggers();
         void LoadGameObjectForQuests();
@@ -1231,11 +1253,7 @@ class TC_GAME_API ObjectMgr
         ObjectGuid::LowType GenerateCreatureSpawnId();
         ObjectGuid::LowType GenerateGameObjectSpawnId();
 
-        bool SpawnGroupSpawn(uint32 groupId, Map* map, bool ignoreRespawn = false, bool force = false, std::vector<WorldObject*>* spawnedObjects = nullptr);
-        bool SpawnGroupDespawn(uint32 groupId, Map* map, bool deleteRespawnTimes = false);
         SpawnGroupTemplateData const* GetSpawnGroupData(uint32 groupId) const { auto it = _spawnGroupDataStore.find(groupId); return it != _spawnGroupDataStore.end() ? &it->second : nullptr; }
-        void SetSpawnGroupActive(uint32 groupId, bool state) { auto it = _spawnGroupDataStore.find(groupId); if (it != _spawnGroupDataStore.end()) it->second.isActive = state; }
-        bool IsSpawnGroupActive(uint32 groupId) const { auto it = _spawnGroupDataStore.find(groupId); return (it != _spawnGroupDataStore.end()) && it->second.isActive; }
         SpawnGroupTemplateData const* GetDefaultSpawnGroup() const { return &_spawnGroupDataStore.at(0); }
         SpawnGroupTemplateData const* GetLegacySpawnGroup() const { return &_spawnGroupDataStore.at(1); }
         Trinity::IteratorPair<SpawnGroupLinkContainer::const_iterator> GetSpawnDataForGroup(uint32 groupId) const { return Trinity::Containers::MapEqualRange(_spawnGroupMapStore, groupId); }
@@ -1377,6 +1395,12 @@ class TC_GAME_API ObjectMgr
         {
             PointOfInterestLocaleContainer::const_iterator itr = _pointOfInterestLocaleStore.find(id);
             if (itr == _pointOfInterestLocaleStore.end()) return nullptr;
+            return &itr->second;
+        }
+        QuestGreetingLocale const* GetQuestGreetingLocale(uint32 id) const
+        {
+            QuestGreetingLocaleContainer::const_iterator itr = _questGreetingLocaleStore.find(id);
+            if (itr == _questGreetingLocaleStore.end()) return nullptr;
             return &itr->second;
         }
 
@@ -1532,6 +1556,7 @@ class TC_GAME_API ObjectMgr
         TavernAreaTriggerContainer _tavernAreaTriggerStore;
         GameObjectForQuestContainer _gameObjectForQuestStore;
         GossipTextContainer _gossipTextStore;
+        QuestGreetingContainer _questGreetingStore;
         AreaTriggerContainer _areaTriggerStore;
         AreaTriggerScriptContainer _areaTriggerScriptStore;
         AccessRequirementContainer _accessRequirementStore;
@@ -1642,6 +1667,7 @@ class TC_GAME_API ObjectMgr
         PageTextLocaleContainer _pageTextLocaleStore;
         GossipMenuItemsLocaleContainer _gossipMenuItemsLocaleStore;
         PointOfInterestLocaleContainer _pointOfInterestLocaleStore;
+        QuestGreetingLocaleContainer _questGreetingLocaleStore;
 
         TrinityStringContainer _trinityStringStore;
 

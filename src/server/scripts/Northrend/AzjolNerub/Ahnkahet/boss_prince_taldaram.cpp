@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2017 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -53,7 +53,8 @@ enum Spells
 enum Misc
 {
     DATA_EMBRACE_DMG                        = 20000,
-    H_DATA_EMBRACE_DMG                      = 40000
+    H_DATA_EMBRACE_DMG                      = 40000,
+    SUMMON_GROUP_CONTROLLERS                = 1
 };
 
 #define DATA_SPHERE_DISTANCE                25.0f
@@ -104,11 +105,14 @@ class boss_prince_taldaram : public CreatureScript
                 _flameSphereTargetGUID.Clear();
                 _embraceTargetGUID.Clear();
                 _embraceTakenDamage = 0;
+
+                if (!CheckSpheres())
+                    me->SummonCreatureGroup(SUMMON_GROUP_CONTROLLERS);
             }
 
-            void EnterCombat(Unit* /*who*/) override
+            void JustEngagedWith(Unit* /*who*/) override
             {
-                _EnterCombat();
+                _JustEngagedWith();
                 Talk(SAY_AGGRO);
                 events.ScheduleEvent(EVENT_BLOODTHIRST, 10000);
                 events.ScheduleEvent(EVENT_VANISH, urand(25000, 35000));
@@ -125,6 +129,10 @@ class boss_prince_taldaram : public CreatureScript
                     case NPC_FLAME_SPHERE_2:
                     case NPC_FLAME_SPHERE_3:
                         summon->AI()->SetGUID(_flameSphereTargetGUID);
+                        break;
+                    case NPC_JEDOGA_CONTROLLER:
+                        summon->CastSpell(me, SPELL_BEAM_VISUAL);
+                        break;
                     default:
                         return;
                 }
@@ -266,13 +274,15 @@ class boss_prince_taldaram : public CreatureScript
             void RemovePrison()
             {
                 me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
+                summons.DespawnEntry(NPC_JEDOGA_CONTROLLER);
                 me->RemoveAurasDueToSpell(SPELL_BEAM_VISUAL);
                 me->SetHomePosition(me->GetPositionX(), me->GetPositionY(), DATA_GROUND_POSITION_Z, me->GetOrientation());
                 DoCast(SPELL_HOVER_FALL);
                 me->SetDisableGravity(false);
                 me->GetMotionMaster()->MoveLand(0, me->GetHomePosition());
                 Talk(SAY_WARNING);
-                instance->HandleGameObject(instance->GetGuidData(DATA_PRINCE_TALDARAM_PLATFORM), true);
+                if (GameObject* platform = instance->GetGameObject(DATA_PRINCE_TALDARAM_PLATFORM))
+                    instance->HandleGameObject(platform->GetGUID(), true);
             }
 
         private:
@@ -310,12 +320,12 @@ class npc_prince_taldaram_flame_sphere : public CreatureScript
                 _events.ScheduleEvent(EVENT_DESPAWN, 13 * IN_MILLISECONDS);
             }
 
-            void SetGUID(ObjectGuid guid, int32 /*id = 0*/) override
+            void SetGUID(ObjectGuid const& guid, int32 /*id*/) override
             {
                 _flameSphereTargetGUID = guid;
             }
 
-            void EnterCombat(Unit* /*who*/) override { }
+            void JustEngagedWith(Unit* /*who*/) override { }
             void MoveInLineOfSight(Unit* /*who*/) override { }
 
             void UpdateAI(uint32 diff) override
@@ -395,7 +405,7 @@ class go_prince_taldaram_sphere : public GameObjectScript
 
             bool GossipHello(Player* /*player*/) override
             {
-                Creature* princeTaldaram = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_PRINCE_TALDARAM));
+                Creature* princeTaldaram = instance->GetCreature(DATA_PRINCE_TALDARAM);
                 if (princeTaldaram && princeTaldaram->IsAlive())
                 {
                     me->SetFlag(GAMEOBJECT_FLAGS, GO_FLAG_NOT_SELECTABLE);

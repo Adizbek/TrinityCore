@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2017 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
  * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -243,7 +243,7 @@ void PetAI::UpdateAI(uint32 diff)
             SpellCastTargets targets;
             targets.SetUnitTarget(target);
 
-            spell->prepare(&targets);
+            spell->prepare(targets);
         }
 
         // deleted cached Spell objects
@@ -549,6 +549,8 @@ bool PetAI::CanAttack(Unit* target)
         //me->InterruptNonMeleeSpells(false);
         return false;
     }
+
+    ASSERT(me->GetCharmInfo());
 
     // Passive - passive pets can attack if told to
     if (me->HasReactState(REACT_PASSIVE))

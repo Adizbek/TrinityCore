@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2017 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
  * Copyright (C) 2006-2009 ScriptDev2 <https://scriptdev2.svn.sourceforge.net/>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -286,7 +286,7 @@ public:
             me->RemoveFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_QUESTGIVER);
         }
 
-        void EnterCombat(Unit* /*who*/) override { }
+        void JustEngagedWith(Unit* /*who*/) override { }
 
         void UpdateAI(uint32 diff) override
         {
@@ -410,7 +410,7 @@ public:
             }
         }
 
-        void EnterCombat(Unit* /*who*/) override { }
+        void JustEngagedWith(Unit* /*who*/) override { }
 
         void ReceiveEmote(Player* player, uint32 emote) override
         {
@@ -457,8 +457,7 @@ public:
 
 enum TorchTossingTarget
 {
-    NPC_TORCH_TOSSING_TARGET_BUNNY      = 25535,
-    SPELL_TARGET_INDICATOR              = 45723
+    SPELL_TORCH_TARGET_PICKER      = 45907
 };
 
 class npc_torch_tossing_target_bunny_controller : public CreatureScript
@@ -468,42 +467,28 @@ public:
 
     struct npc_torch_tossing_target_bunny_controllerAI : public ScriptedAI
     {
-        npc_torch_tossing_target_bunny_controllerAI(Creature* creature) : ScriptedAI(creature)
-        {
-            _targetTimer = 3000;
-        }
+        npc_torch_tossing_target_bunny_controllerAI(Creature* creature) : ScriptedAI(creature) { }
 
-        ObjectGuid DoSearchForTargets(ObjectGuid lastTargetGUID)
+        void Reset() override
         {
-            std::list<Creature*> targets;
-            me->GetCreatureListWithEntryInGrid(targets, NPC_TORCH_TOSSING_TARGET_BUNNY, 60.0f);
-            targets.remove_if([lastTargetGUID](Creature* creature) { return creature->GetGUID() == lastTargetGUID; });
-
-            if (!targets.empty())
+            _scheduler.Schedule(Seconds(2), [this](TaskContext context)
             {
-                _lastTargetGUID = Trinity::Containers::SelectRandomContainerElement(targets)->GetGUID();
-
-                return _lastTargetGUID;
-            }
-            return ObjectGuid::Empty;
+                me->CastSpell(nullptr, SPELL_TORCH_TARGET_PICKER);
+                _scheduler.Schedule(Seconds(3), [this](TaskContext /*context*/)
+                {
+                    me->CastSpell(nullptr, SPELL_TORCH_TARGET_PICKER);
+                });
+                context.Repeat(Seconds(5));
+            });
         }
 
         void UpdateAI(uint32 diff) override
         {
-            if (_targetTimer < diff)
-            {
-                if (Unit* target = ObjectAccessor::GetUnit(*me, DoSearchForTargets(_lastTargetGUID)))
-                    target->CastSpell(target, SPELL_TARGET_INDICATOR, true);
-
-                _targetTimer = 3000;
-            }
-            else
-                _targetTimer -= diff;
+            _scheduler.Update(diff);
         }
 
     private:
-        uint32 _targetTimer;
-        ObjectGuid _lastTargetGUID;
+        TaskScheduler _scheduler;
     };
 
     CreatureAI* GetAI(Creature* creature) const override
@@ -813,7 +798,7 @@ public:
 
         void UpdateAI(uint32 diff) override;
 
-        void EnterCombat(Unit* /*who*/) override { }
+        void JustEngagedWith(Unit* /*who*/) override { }
 
         void QuestAccept(Player* player, Quest const* quest) override
         {
@@ -885,7 +870,7 @@ public:
             }
         }
 
-        void EnterCombat(Unit* /*who*/) override { }
+        void JustEngagedWith(Unit* /*who*/) override { }
 
         void SpellHit(Unit* caster, SpellInfo const* spell) override
         {
@@ -1091,7 +1076,7 @@ public:
             me->SetHealth(me->CountPctFromMaxHealth(70));
         }
 
-        void EnterCombat(Unit* /*who*/) override { }
+        void JustEngagedWith(Unit* /*who*/) override { }
 
         void SpellHit(Unit* caster, SpellInfo const* spell) override
         {
@@ -1193,7 +1178,7 @@ public:
             me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
         }
 
-        void EnterCombat(Unit* /*who*/) override
+        void JustEngagedWith(Unit* /*who*/) override
         {
         }
 
@@ -1406,7 +1391,7 @@ public:
         npc_steam_tonkAI(Creature* creature) : ScriptedAI(creature) { }
 
         void Reset() override { }
-        void EnterCombat(Unit* /*who*/) override { }
+        void JustEngagedWith(Unit* /*who*/) override { }
 
         void OnPossess(bool apply)
         {
@@ -1459,7 +1444,7 @@ public:
             Initialize();
         }
 
-        void EnterCombat(Unit* /*who*/) override { }
+        void JustEngagedWith(Unit* /*who*/) override { }
         void AttackStart(Unit* /*who*/) override { }
         void MoveInLineOfSight(Unit* /*who*/) override { }
 
@@ -1806,7 +1791,7 @@ public:
         void DamageTaken(Unit* doneBy, uint32& damage) override
         {
             AddThreat(doneBy, float(damage));    // just to create threat reference
-            _damageTimes[doneBy->GetGUID()] = time(nullptr);
+            _damageTimes[doneBy->GetGUID()] = GameTime::GetGameTime();
             damage = 0;
         }
 
@@ -1826,7 +1811,7 @@ public:
                 {
                     case EVENT_TD_CHECK_COMBAT:
                     {
-                        time_t now = time(nullptr);
+                        time_t now = GameTime::GetGameTime();
                         for (std::unordered_map<ObjectGuid, time_t>::iterator itr = _damageTimes.begin(); itr != _damageTimes.end();)
                         {
                             // If unit has not dealt damage to training dummy for 5 seconds, remove him from combat
@@ -2340,7 +2325,7 @@ public:
             }
             else
                 //me->CastSpell(me, GetFireworkSpell(me->GetEntry()), true);
-                me->CastSpell(me->GetPositionX(), me->GetPositionY(), me->GetPositionZ(), GetFireworkSpell(me->GetEntry()), true);
+                me->CastSpell(me->GetPosition(), GetFireworkSpell(me->GetEntry()), true);
         }
     };
 
@@ -2403,7 +2388,7 @@ public:
                 me->GetMotionMaster()->MoveFollow(owner, PET_FOLLOW_DIST, PET_FOLLOW_ANGLE);
         }
 
-        void EnterCombat(Unit* /*who*/) override { }
+        void JustEngagedWith(Unit* /*who*/) override { }
 
         void DoAction(int32 /*param*/) override
         {
@@ -2893,7 +2878,7 @@ class CastFoodSpell : public BasicEvent
         bool Execute(uint64 /*execTime*/, uint32 /*diff*/) override
         {
             _owner->CastSpell(_owner, _spellId, true);
-            return false;
+            return true;
         }
 
     private:
