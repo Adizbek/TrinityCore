@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2017 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -27,6 +27,7 @@ EndScriptData */
 #include "DatabaseEnv.h"
 #include "DBCStores.h"
 #include "GameEventMgr.h"
+#include "GameTime.h"
 #include "Language.h"
 #include "Log.h"
 #include "MapManager.h"
@@ -327,7 +328,7 @@ public:
 
         if (target)
         {
-            int32 curRespawnDelay = int32(target->GetRespawnTimeEx() - time(nullptr));
+            int32 curRespawnDelay = int32(target->GetRespawnTimeEx() - GameTime::GetGameTime());
             if (curRespawnDelay < 0)
                 curRespawnDelay = 0;
 
@@ -351,6 +352,9 @@ public:
         if (!guidLow)
             return false;
 
+        Player const* const player = handler->GetSession()->GetPlayer();
+        // force respawn to make sure we find something
+        player->GetMap()->RemoveRespawnTime(SPAWN_TYPE_GAMEOBJECT, guidLow, true);
         GameObject* object = handler->GetObjectFromPlayerMapByDbGuid(guidLow);
         if (!object)
         {
@@ -362,7 +366,7 @@ public:
         ObjectGuid ownerGuid = object->GetOwnerGUID();
         if (ownerGuid)
         {
-            Unit* owner = ObjectAccessor::GetUnit(*handler->GetSession()->GetPlayer(), ownerGuid);
+            Unit* owner = ObjectAccessor::GetUnit(*player, ownerGuid);
             if (!owner || !ownerGuid.IsPlayer())
             {
                 handler->PSendSysMessage(LANG_COMMAND_DELOBJREFERCREATURE, ownerGuid.GetCounter(), guidLow);
@@ -668,7 +672,7 @@ public:
             if (object->ToGameObject() && object->ToGameObject()->GetGameObjectData() && object->ToGameObject()->GetGameObjectData()->spawnGroupData->groupId)
             {
                 SpawnGroupTemplateData const* groupData = object->ToGameObject()->GetGameObjectData()->spawnGroupData;
-                handler->PSendSysMessage(LANG_SPAWNINFO_GROUP_ID, groupData->name.c_str(), groupData->groupId, groupData->flags, groupData->isActive);
+                handler->PSendSysMessage(LANG_SPAWNINFO_GROUP_ID, groupData->name.c_str(), groupData->groupId, groupData->flags, object->GetMap()->IsSpawnGroupActive(groupData->groupId));
             }
             if (object->ToGameObject())
                 handler->PSendSysMessage(LANG_SPAWNINFO_COMPATIBILITY_MODE, object->ToGameObject()->GetRespawnCompatibilityMode());

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2017 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -213,11 +213,17 @@ void Metric::ScheduleSend()
     }
 }
 
-void Metric::ForceSend()
+void Metric::Unload()
 {
     // Send what's queued only if io_service is stopped (so only on shutdown)
     if (_enabled && _batchTimer->get_io_service().stopped())
+    {
+        _enabled = false;
         SendBatch();
+    }
+
+    _batchTimer->cancel();
+    _overallStatusTimer->cancel();
 }
 
 void Metric::ScheduleOverallStatusLog()

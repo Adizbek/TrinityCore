@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2017 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -610,6 +610,7 @@ struct SmartAction
         {
             uint32 sound;
             uint32 onlySelf;
+            uint32 distance;
         } sound;
 
         struct
@@ -1070,8 +1071,9 @@ struct SmartAction
 
         struct
         {
-            uint32 sounds[SMART_ACTION_PARAM_COUNT - 1];
+            uint32 sounds[SMART_ACTION_PARAM_COUNT - 2];
             uint32 onlySelf;
+            uint32 distance;
         } randomSound;
 
         struct

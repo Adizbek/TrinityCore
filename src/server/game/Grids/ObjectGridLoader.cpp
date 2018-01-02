@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2017 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
  * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -24,6 +24,7 @@
 #include "DynamicObject.h"
 #include "Log.h"
 #include "GameObject.h"
+#include "GameTime.h"
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
 #include "World.h"
@@ -133,13 +134,18 @@ void LoadHelper(CellGuidSet const& guid_set, CellCoord &cell, GridRefManager<T> 
                 ASSERT(cdata, "Tried to load creature with spawnId %u, but no such creature exists.", guid);
                 SpawnGroupTemplateData const* const group = cdata->spawnGroupData;
                 // If creature in manual spawn group, don't spawn here, unless group is already active.
-                if ((group->flags & SPAWNGROUP_FLAG_MANUAL_SPAWN) && !group->isActive)
-                    continue;
+                if (!(group->flags & SPAWNGROUP_FLAG_SYSTEM))
+                    if (!map->IsSpawnGroupActive(group->groupId))
+                    {
+                        delete obj;
+                        continue;
+                    }
 
                 // If script is blocking spawn, don't spawn but queue for a re-check in a little bit
                 if (!(group->flags & SPAWNGROUP_FLAG_COMPATIBILITY_MODE) && !sScriptMgr->CanSpawn(guid, cdata->id, cdata, map))
                 {
-                    map->SaveRespawnTime(SPAWN_TYPE_CREATURE, guid, cdata->id, time(NULL) + urand(4,7), map->GetZoneId(cdata->spawnPoint), Trinity::ComputeGridCoord(cdata->spawnPoint.GetPositionX(), cdata->spawnPoint.GetPositionY()).GetId(), false);
+                    map->SaveRespawnTime(SPAWN_TYPE_CREATURE, guid, cdata->id, GameTime::GetGameTime() + urand(4,7), map->GetZoneId(cdata->spawnPoint), Trinity::ComputeGridCoord(cdata->spawnPoint.GetPositionX(), cdata->spawnPoint.GetPositionY()).GetId(), false);
+                    delete obj;
                     continue;
                 }
             }
@@ -148,8 +154,12 @@ void LoadHelper(CellGuidSet const& guid_set, CellCoord &cell, GridRefManager<T> 
                 // If gameobject in manual spawn group, don't spawn here, unless group is already active.
                 GameObjectData const* godata = sObjectMgr->GetGameObjectData(guid);
                 ASSERT(godata, "Tried to load gameobject with spawnId %u, but no such object exists.", guid);
-                if ((godata->spawnGroupData->flags & SPAWNGROUP_FLAG_MANUAL_SPAWN) && !godata->spawnGroupData->isActive)
-                    continue;
+                if (!(godata->spawnGroupData->flags & SPAWNGROUP_FLAG_SYSTEM))
+                    if (!map->IsSpawnGroupActive(godata->spawnGroupData->groupId))
+                    {
+                        delete obj;
+                        continue;
+                    }
             }
 
             if (!obj->LoadFromDB(guid, map, false, false))

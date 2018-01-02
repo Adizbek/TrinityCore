@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2017 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
  * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -999,7 +999,8 @@ enum TrinityStrings
     LANG_GROUP_NOT_IN_RAID_GROUP        = 1185,
     LANG_GROUP_ROLE_CHANGED             = 1186,
     LANG_LEADER_CANNOT_BE_ASSISTANT     = 1187,
-    // Room for more level 3              1188-1198 not used
+    LANG_BAN_EXISTS                     = 1188,
+    // Room for more level 3              1189-1198 not used
 
     // Debug commands
     LANG_DO_NOT_USE_6X_DEBUG_AREATRIGGER_LEFT = 1999,

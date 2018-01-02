@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2017 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -52,7 +52,9 @@ enum RogueSpells
     SPELL_ROGUE_T10_2P_BONUS                    = 70804,
     SPELL_ROGUE_GLYPH_OF_BACKSTAB_TRIGGER       = 63975,
     SPELL_ROGUE_QUICK_RECOVERY_ENERGY           = 31663,
-    SPELL_ROGUE_CRIPPLING_POISON                = 3409
+    SPELL_ROGUE_CRIPPLING_POISON                = 3409,
+    SPELL_ROGUE_MASTER_OF_SUBTLETY_BUFF         = 31665,
+    SPELL_ROGUE_OVERKILL_BUFF                   = 58427
 };
 
 // 13877, 33735, (check 51211, 65956) - Blade Flurry
@@ -81,8 +83,9 @@ class spell_rog_blade_flurry : public SpellScriptLoader
                 PreventDefaultAction();
                 if (DamageInfo* damageInfo = eventInfo.GetDamageInfo())
                 {
-                    int32 damage = damageInfo->GetDamage();
-                    GetTarget()->CastCustomSpell(SPELL_ROGUE_BLADE_FLURRY_EXTRA_ATTACK, SPELLVALUE_BASE_POINT0, damage, _procTarget, true, nullptr, aurEff);
+                    CastSpellExtraArgs args(aurEff);
+                    args.SpellValueOverrides.AddBP0(damageInfo->GetDamage());
+                    GetTarget()->CastSpell(_procTarget, SPELL_ROGUE_BLADE_FLURRY_EXTRA_ATTACK, args);
                 }
             }
 
@@ -219,7 +222,7 @@ class spell_rog_deadly_brew : public SpellScriptLoader
             void HandleProc(AuraEffect const* aurEff, ProcEventInfo& eventInfo)
             {
                 PreventDefaultAction();
-                eventInfo.GetActor()->CastSpell(eventInfo.GetProcTarget(), SPELL_ROGUE_CRIPPLING_POISON, true, nullptr, aurEff);
+                eventInfo.GetActor()->CastSpell(eventInfo.GetProcTarget(), SPELL_ROGUE_CRIPPLING_POISON, aurEff);
             }
 
             void Register() override
@@ -304,9 +307,9 @@ class spell_rog_deadly_poison : public SpellScriptLoader
                                 continue;
 
                             if (spellInfo->IsPositive())
-                                player->CastSpell(player, enchant->spellid[s], true, item);
+                                player->CastSpell(player, enchant->spellid[s], item);
                             else
-                                player->CastSpell(target, enchant->spellid[s], true, item);
+                                player->CastSpell(target, enchant->spellid[s], item);
                         }
                     }
                 }
@@ -479,6 +482,41 @@ class spell_rog_nerves_of_steel : public SpellScriptLoader
         }
 };
 
+// 31666 - Master of Subtlety
+// 58428 - Overkill - aura remove spell (SERVERSIDE)
+template <uint32 RemoveSpell>
+class spell_rog_overkill_mos : public SpellScriptLoader
+{
+    public:
+        spell_rog_overkill_mos(char const* ScriptName) : SpellScriptLoader(ScriptName) { }
+
+        template <uint32 RemoveSpellId>
+        class spell_rog_overkill_mos_AuraScript : public AuraScript
+        {
+            PrepareAuraScript(spell_rog_overkill_mos_AuraScript);
+
+            bool Validate(SpellInfo const* /*spellInfo*/) override
+            {
+                return ValidateSpellInfo({ RemoveSpellId });
+            }
+
+            void PeriodicTick(AuraEffect const* /*aurEff*/)
+            {
+                GetTarget()->RemoveAurasDueToSpell(RemoveSpellId);
+            }
+
+            void Register() override
+            {
+                OnEffectPeriodic += AuraEffectPeriodicFn(spell_rog_overkill_mos_AuraScript::PeriodicTick, EFFECT_0, SPELL_AURA_PERIODIC_DUMMY);
+            }
+        };
+
+        AuraScript* GetAuraScript() const override
+        {
+            return new spell_rog_overkill_mos_AuraScript<RemoveSpell>();
+        }
+};
+
 // 14185 - Preparation
 class spell_rog_preparation : public SpellScriptLoader
 {
@@ -553,8 +591,9 @@ class spell_rog_prey_on_the_weak : public SpellScriptLoader
                 {
                     if (!target->HasAura(SPELL_ROGUE_PREY_ON_THE_WEAK))
                     {
-                        int32 bp = GetSpellInfo()->Effects[EFFECT_0].CalcValue();
-                        target->CastCustomSpell(target, SPELL_ROGUE_PREY_ON_THE_WEAK, &bp, nullptr, nullptr, true);
+                        CastSpellExtraArgs args(TRIGGERED_FULL_MASK);
+                        args.SpellValueOverrides.AddBP0(GetSpellInfo()->Effects[EFFECT_0].CalcValue());
+                        target->CastSpell(target, SPELL_ROGUE_PREY_ON_THE_WEAK, args);
                     }
                 }
                 else
@@ -597,7 +636,9 @@ class spell_rog_quick_recovery : public SpellScriptLoader
 
                 Unit* caster = eventInfo.GetActor();
                 int32 amount = CalculatePct(spellInfo->CalcPowerCost(caster, spellInfo->GetSchoolMask()), aurEff->GetAmount());
-                caster->CastCustomSpell(SPELL_ROGUE_QUICK_RECOVERY_ENERGY, SPELLVALUE_BASE_POINT0, amount, (Unit*)nullptr, true, nullptr, aurEff);
+                CastSpellExtraArgs args(aurEff);
+                args.SpellValueOverrides.AddBP0(amount);
+                caster->CastSpell(nullptr, SPELL_ROGUE_QUICK_RECOVERY_ENERGY, args);
             }
 
             void Register() override
@@ -696,7 +737,7 @@ class spell_rog_glyph_of_backstab : public SpellScriptLoader
             void HandleProc(AuraEffect const* aurEff, ProcEventInfo& eventInfo)
             {
                 PreventDefaultAction();
-                eventInfo.GetActor()->CastSpell(eventInfo.GetProcTarget(), SPELL_ROGUE_GLYPH_OF_BACKSTAB_TRIGGER, true, nullptr, aurEff);
+                eventInfo.GetActor()->CastSpell(eventInfo.GetProcTarget(), SPELL_ROGUE_GLYPH_OF_BACKSTAB_TRIGGER, aurEff);
             }
 
             void Register() override
@@ -958,7 +999,7 @@ public:
                 return;
 
             Unit* target = GetTarget();
-            target->CastSpell(target, GetSpellInfo()->Effects[aurEff->GetEffIndex()].TriggerSpell, true, nullptr, aurEff, caster->GetGUID());
+            target->CastSpell(target, GetSpellInfo()->Effects[aurEff->GetEffIndex()].TriggerSpell, { aurEff, caster->GetGUID() });
         }
 
         void Register() override
@@ -1060,7 +1101,7 @@ class spell_rog_turn_the_tables : public SpellScriptLoader
                 if (!caster)
                     return;
 
-                caster->CastSpell(nullptr, GetSpellInfo()->Effects[EFFECT_0].TriggerSpell, true, nullptr, aurEff);
+                caster->CastSpell(nullptr, GetSpellInfo()->Effects[EFFECT_0].TriggerSpell, aurEff);
             }
 
             void Register() override
@@ -1084,6 +1125,8 @@ void AddSC_rogue_spell_scripts()
     new spell_rog_deadly_poison();
     new spell_rog_killing_spree();
     new spell_rog_nerves_of_steel();
+    new spell_rog_overkill_mos<SPELL_ROGUE_OVERKILL_BUFF>("spell_rog_overkill");
+    new spell_rog_overkill_mos<SPELL_ROGUE_MASTER_OF_SUBTLETY_BUFF>("spell_rog_master_of_subtlety");
     new spell_rog_preparation();
     new spell_rog_prey_on_the_weak();
     new spell_rog_quick_recovery();

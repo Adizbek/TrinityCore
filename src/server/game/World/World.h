@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2017 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
  * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -252,6 +252,9 @@ enum WorldIntConfigs
     CONFIG_DAILY_QUEST_RESET_TIME_HOUR,
     CONFIG_MAX_PRIMARY_TRADE_SKILL,
     CONFIG_MIN_PETITION_SIGNS,
+    CONFIG_MIN_QUEST_SCALED_XP_RATIO,
+    CONFIG_MIN_CREATURE_SCALED_XP_RATIO,
+    CONFIG_MIN_DISCOVERED_SCALED_XP_RATIO,
     CONFIG_GM_LOGIN_STATE,
     CONFIG_GM_VISIBLE_STATE,
     CONFIG_GM_ACCEPT_TICKETS,
@@ -264,6 +267,7 @@ enum WorldIntConfigs
     CONFIG_FORCE_SHUTDOWN_THRESHOLD,
     CONFIG_GROUP_VISIBILITY,
     CONFIG_MAIL_DELIVERY_DELAY,
+    CONFIG_CLEAN_OLD_MAIL_TIME,
     CONFIG_UPTIME_UPDATE,
     CONFIG_SKILL_CHANCE_ORANGE,
     CONFIG_SKILL_CHANCE_YELLOW,

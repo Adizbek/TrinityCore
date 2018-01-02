@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2017 TrinityCore <http://www.trinitycore.org/>
+ * Copyright (C) 2008-2018 TrinityCore <https://www.trinitycore.org/>
  * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -2344,9 +2344,11 @@ void SpellMgr::LoadSpellAreas()
     uint32 oldMSTime = getMSTime();
 
     mSpellAreaMap.clear();                                  // need for reload case
+    mSpellAreaForAreaMap.clear();
     mSpellAreaForQuestMap.clear();
     mSpellAreaForQuestEndMap.clear();
     mSpellAreaForAuraMap.clear();
+    mSpellAreaForQuestAreaMap.clear();
 
     //                                                  0     1         2              3               4                 5          6          7       8         9
     QueryResult result = WorldDatabase.Query("SELECT spell, area, quest_start, quest_start_status, quest_end_status, quest_end, aura_spell, racemask, gender, autocast FROM spell_area");
@@ -2541,6 +2543,22 @@ void SpellMgr::LoadSpellInfoStore()
 
     for (SpellEntry const* spellEntry : sSpellStore)
         mSpellInfoMap[spellEntry->Id] = new SpellInfo(spellEntry);
+
+    for (uint32 spellIndex = 0; spellIndex < GetSpellInfoStoreSize(); ++spellIndex)
+    {
+        if (!mSpellInfoMap[spellIndex])
+            continue;
+
+        for (auto const& effect : mSpellInfoMap[spellIndex]->Effects)
+        {
+            //ASSERT(effect.EffectIndex < MAX_SPELL_EFFECTS, "MAX_SPELL_EFFECTS must be at least %u", effect.EffectIndex + 1);
+            ASSERT(effect.Effect < TOTAL_SPELL_EFFECTS, "TOTAL_SPELL_EFFECTS must be at least %u", effect.Effect + 1);
+            ASSERT(effect.ApplyAuraName < TOTAL_AURAS, "TOTAL_AURAS must be at least %u", effect.ApplyAuraName + 1);
+            ASSERT(effect.TargetA.GetTarget() < TOTAL_SPELL_TARGETS, "TOTAL_SPELL_TARGETS must be at least %u", effect.TargetA.GetTarget() + 1);
+            ASSERT(effect.TargetB.GetTarget() < TOTAL_SPELL_TARGETS, "TOTAL_SPELL_TARGETS must be at least %u", effect.TargetB.GetTarget() + 1);
+        }
+    }
+
 
     TC_LOG_INFO("server.loading", ">> Loaded SpellInfo store in %u ms", GetMSTimeDiffToNow(oldMSTime));
 }
@@ -2867,6 +2885,98 @@ void SpellMgr::LoadSpellInfoCorrections()
 {
     uint32 oldMSTime = getMSTime();
 
+    // Some spells have no amplitude set
+    {
+        ApplySpellFix({
+            6727,  // Poison Mushroom
+            7288,  // Immolate Cumulative (TEST) (Rank 1)
+            7291,  // Food (TEST)
+            7331,  // Healing Aura (TEST) (Rank 1)
+            /*
+            30400, // Nether Beam - Perseverance
+                Blizzlike to have it disabled? DBC says:
+                "This is currently turned off to increase performance. Enable this to make it fire more frequently."
+            */
+            34589, // Dangerous Water
+            52562, // Arthas Zombie Catcher
+            57550, // Tirion Aggro
+            65755
+        }, [](SpellInfo* spellInfo)
+        {
+            spellInfo->Effects[EFFECT_0].Amplitude = 1 * IN_MILLISECONDS;
+        });
+
+        ApplySpellFix({
+            24707, // Food
+            26263, // Dim Sum
+            29055, // Refreshing Red Apple
+            37504  // Karazhan - Chess NPC AI, action timer
+        }, [](SpellInfo* spellInfo)
+        {
+            // first effect has correct amplitude
+            spellInfo->Effects[EFFECT_1].Amplitude = spellInfo->Effects[EFFECT_0].Amplitude;
+        });
+
+        // Vomit
+        ApplySpellFix({ 43327 }, [](SpellInfo* spellInfo)
+        {
+            spellInfo->Effects[EFFECT_1].Amplitude = 1 * IN_MILLISECONDS;
+        });
+
+        // Strider Presence
+        ApplySpellFix({ 4312 }, [](SpellInfo* spellInfo)
+        {
+            spellInfo->Effects[EFFECT_0].Amplitude = 1 * IN_MILLISECONDS;
+            spellInfo->Effects[EFFECT_1].Amplitude = 1 * IN_MILLISECONDS;
+        });
+
+        // Food
+        ApplySpellFix({ 64345 }, [](SpellInfo* spellInfo)
+        {
+            spellInfo->Effects[EFFECT_0].Amplitude = 1 * IN_MILLISECONDS;
+            spellInfo->Effects[EFFECT_2].Amplitude = 1 * IN_MILLISECONDS;
+        });
+    }
+
+    // specific code for cases with no trigger spell provided in field
+    {
+        // Brood Affliction: Bronze
+        ApplySpellFix({ 23170 }, [](SpellInfo* spellInfo)
+        {
+            spellInfo->Effects[EFFECT_0].TriggerSpell = 23171;
+        });
+
+        // Feed Captured Animal
+        ApplySpellFix({ 29917 }, [](SpellInfo* spellInfo)
+        {
+            spellInfo->Effects[EFFECT_0].TriggerSpell = 29916;
+        });
+
+        // Remote Toy
+        ApplySpellFix({ 37027 }, [](SpellInfo* spellInfo)
+        {
+            spellInfo->Effects[EFFECT_0].TriggerSpell = 37029;
+        });
+
+        // Eye of Grillok
+        ApplySpellFix({ 38495 }, [](SpellInfo* spellInfo)
+        {
+            spellInfo->Effects[EFFECT_0].TriggerSpell = 38530;
+        });
+
+        // Tear of Azzinoth Summon Channel - it's not really supposed to do anything, and this only prevents the console spam
+        ApplySpellFix({ 39857 }, [](SpellInfo* spellInfo)
+        {
+            spellInfo->Effects[EFFECT_0].TriggerSpell = 39856;
+        });
+
+        // Personalized Weather
+        ApplySpellFix({ 46736 }, [](SpellInfo* spellInfo)
+        {
+            spellInfo->Effects[EFFECT_1].TriggerSpell = 46737;
+        });
+    }
+
     // Spell Reflection
     ApplySpellFix({ 57643 }, [](SpellInfo* spellInfo)
     {
@@ -3095,14 +3205,16 @@ void SpellMgr::LoadSpellInfoCorrections()
         52438, // Summon Skittering Swarmer (Force Cast)
         52449, // Summon Skittering Infector (Force Cast)
         53609, // Summon Anub'ar Assassin (Force Cast)
-        53457  // Summon Impale Trigger (AoE)
+        53457, // Summon Impale Trigger (AoE)
+        45907  // Torch Target Picker
     }, [](SpellInfo* spellInfo)
     {
         spellInfo->MaxAffectedTargets = 1;
     });
 
-    // Skartax Purple Beam
-    ApplySpellFix({ 36384 }, [](SpellInfo* spellInfo)
+    ApplySpellFix({
+        36384  // Skartax Purple Beam
+    }, [](SpellInfo* spellInfo)
     {
         spellInfo->MaxAffectedTargets = 2;
     });
@@ -3132,6 +3244,44 @@ void SpellMgr::LoadSpellInfoCorrections()
     }, [](SpellInfo* spellInfo)
     {
         spellInfo->MaxAffectedTargets = 4;
+    });
+
+    ApplySpellFix({
+        42005, // Bloodboil
+        38296, // Spitfire Totem
+        37676, // Insidious Whisper
+        46008, // Negative Energy
+        45641, // Fire Bloom
+        55665, // Life Drain - Sapphiron (H)
+        28796  // Poison Bolt Volly - Faerlina
+    }, [](SpellInfo* spellInfo)
+    {
+        spellInfo->MaxAffectedTargets = 5;
+    });
+
+    ApplySpellFix({
+        54835  // Curse of the Plaguebringer - Noth (H)
+    }, [](SpellInfo* spellInfo)
+    {
+        spellInfo->MaxAffectedTargets = 8;
+    });
+
+    ApplySpellFix({
+        40827, // Sinful Beam
+        40859, // Sinister Beam
+        40860, // Vile Beam
+        40861, // Wicked Beam
+        54098  // Poison Bolt Volly - Faerlina (H)
+    }, [](SpellInfo* spellInfo)
+    {
+        spellInfo->MaxAffectedTargets = 10;
+    });
+
+    ApplySpellFix({
+        50312  // Unholy Frenzy
+    }, [](SpellInfo* spellInfo)
+    {
+        spellInfo->MaxAffectedTargets = 15;
     });
 
     ApplySpellFix({
@@ -3169,43 +3319,6 @@ void SpellMgr::LoadSpellInfoCorrections()
         spellInfo->Effects[EFFECT_1].ApplyAuraName = SPELL_AURA_DUMMY;
         spellInfo->Effects[EFFECT_1].MiscValue = 127;
         spellInfo->Effects[EFFECT_1].TargetA = SpellImplicitTargetInfo(TARGET_UNIT_TARGET_ALLY);
-    });
-
-    ApplySpellFix({
-        42005, // Bloodboil
-        38296, // Spitfire Totem
-        37676, // Insidious Whisper
-        46008, // Negative Energy
-        45641, // Fire Bloom
-        55665, // Life Drain - Sapphiron (H)
-        28796  // Poison Bolt Volly - Faerlina
-    }, [](SpellInfo* spellInfo)
-    {
-        spellInfo->MaxAffectedTargets = 5;
-    });
-
-
-    // Curse of the Plaguebringer - Noth (H)
-    ApplySpellFix({ 54835 }, [](SpellInfo* spellInfo)
-    {
-        spellInfo->MaxAffectedTargets = 8;
-    });
-
-    ApplySpellFix({
-        40827, // Sinful Beam
-        40859, // Sinister Beam
-        40860, // Vile Beam
-        40861, // Wicked Beam
-        54098  // Poison Bolt Volly - Faerlina (H)
-    }, [](SpellInfo* spellInfo)
-    {
-        spellInfo->MaxAffectedTargets = 10;
-    });
-
-    // Unholy Frenzy
-    ApplySpellFix({ 50312 }, [](SpellInfo* spellInfo)
-    {
-        spellInfo->MaxAffectedTargets = 15;
     });
 
     // Murmur's Touch
@@ -3256,11 +3369,6 @@ void SpellMgr::LoadSpellInfoCorrections()
         spellInfo->Effects[EFFECT_0].SpellClassMask[0] |= 0x800;
     });
 
-    // The Eye of Acherus (no spawn in phase 2 in db)
-    ApplySpellFix({ 51852 }, [](SpellInfo* spellInfo)
-    {
-        spellInfo->Effects[EFFECT_0].MiscValue |= 1;
-    });
 
     // Crafty's Ultra-Advanced Proto-Typical Shortening Blaster
     ApplySpellFix({ 51912 }, [](SpellInfo* spellInfo)
@@ -3598,7 +3706,7 @@ void SpellMgr::LoadSpellInfoCorrections()
         47134  // Quest Complete
     }, [](SpellInfo* spellInfo)
     {
-        //! HACK: This spell break quest complete for alliance and on retail not used °_O
+        //! HACK: This spell break quest complete for alliance and on retail not used
         spellInfo->Effects[EFFECT_0].Effect = 0;
     });
 
@@ -3657,6 +3765,14 @@ void SpellMgr::LoadSpellInfoCorrections()
     });
 
     ApplySpellFix({
+        19503, // Scatter Shot
+        34490  // Silencing Shot
+    }, [](SpellInfo* spellInfo)
+    {
+        spellInfo->Speed = 0.f;
+    });
+
+    ApplySpellFix({
         55741, // Desecration (Rank 1)
         68766, // Desecration (Rank 2)
         57842  // Killing Spree (Off hand damage)
@@ -3672,6 +3788,12 @@ void SpellMgr::LoadSpellInfoCorrections()
     }, [](SpellInfo* spellInfo)
     {
         spellInfo->RangeEntry = sSpellRangeStore.LookupEntry(34); // Twenty-Five yards
+    });
+
+    // Summon Corpse Scarabs
+    ApplySpellFix({ 28864, 29105 }, [](SpellInfo* spellInfo)
+    {
+        spellInfo->Effects[EFFECT_0].RadiusEntry = sSpellRadiusStore.LookupEntry(EFFECT_RADIUS_10_YARDS);
     });
 
     //
@@ -3896,6 +4018,12 @@ void SpellMgr::LoadSpellInfoCorrections()
     }, [](SpellInfo* spellInfo)
     {
         spellInfo->Effects[EFFECT_0].RadiusEntry = sSpellRadiusStore.LookupEntry(EFFECT_RADIUS_100_YARDS); // 100yd
+    });
+
+    // Coldflame (Lord Marrowgar)
+    ApplySpellFix({ 69146, 70823, 70824, 70825 }, [](SpellInfo* spellInfo)
+    {
+        spellInfo->AttributesEx4 &= ~SPELL_ATTR4_IGNORE_RESISTANCES;
     });
 
     // Shadow's Fate
@@ -4342,6 +4470,17 @@ void SpellMgr::LoadSpellInfoCorrections()
     });
     // ENDOF ISLE OF CONQUEST SPELLS
 
+    // Aura of Fear
+    ApplySpellFix({ 40453 }, [](SpellInfo* spellInfo)
+    {
+        // Bad DBC data? Copying 25820 here due to spell description
+        // either is a periodic with chance on tick, or a proc
+
+        spellInfo->Effects[EFFECT_0].ApplyAuraName = SPELL_AURA_PROC_TRIGGER_SPELL;
+        spellInfo->Effects[EFFECT_0].Amplitude = 0;
+        spellInfo->ProcChance = 10;
+    });
+
     ApplySpellFix({
         41485, // Deadly Poison - Black Temple
         41487  // Envenom - Black Temple
@@ -4360,11 +4499,13 @@ void SpellMgr::LoadSpellInfoCorrections()
         5707,  // Lifestone Regeneration
         5760,  // Mind-numbing Poison
         6727,  // Poison Mushroom
+        6940,  // Hand of Sacrifice (handled remove in split hook)
         6984,  // Frost Shot (Rank 2)
         7164,  // Defensive Stance
         7288,  // Immolate Cumulative (TEST) (Rank 1)
         7291,  // Food (TEST)
         7331,  // Healing Aura (TEST) (Rank 1)
+        7366,  // Berserker Stance
         7824,  // Blacksmithing Skill +10
         12551, // Frost Shot
         13218, // Wound Poison (Rank 1)
@@ -4374,6 +4515,7 @@ void SpellMgr::LoadSpellInfoCorrections()
         14795, // Venomhide Poison
         16610, // Razorhide
         18099, // Chill Nova
+        18499, // Berserker Rage (extra rage implemented in Unit::RewardRage)
         18802, // Frost Shot
         20000, // Alexander's Test Periodic Aura
         21163, // Polished Armor (Rank 1)
@@ -4383,6 +4525,7 @@ void SpellMgr::LoadSpellInfoCorrections()
         23335, // Silverwing Flag
         25160, // Sand Storm
         27189, // Wound Poison V (Rank 5)
+        28313, // Aura of Fear
         28726, // Nightmare Seed
         28754, // Fury of the Ashbringer
         30802, // Unleashed Rage (Rank 1)
@@ -4392,6 +4535,7 @@ void SpellMgr::LoadSpellInfoCorrections()
         32447, // Travel Form
         33370, // Spell Haste
         33807, // Abacus of Violent Odds
+        33891, // Tree of Life (Shapeshift)
         34132, // Gladiator's Totem of the Third Wind
         34135, // Libram of Justice
         34666, // Tamed Pet Passive 08 (DND)
@@ -4400,6 +4544,7 @@ void SpellMgr::LoadSpellInfoCorrections()
         34889, // Fire Breath (Rank 1)
         34976, // Netherstorm Flag
         35131, // Bladestorm
+        35244, // Choking Vines
         35323, // Fire Breath (Rank 2)
         35336, // Energizing Spores
         36148, // Chill Nova
@@ -4416,6 +4561,8 @@ void SpellMgr::LoadSpellInfoCorrections()
         40396, // Fel Infusion
         40603, // Taunt Gurtogg
         40803, // Ron's Test Buff
+        40879, // Prismatic Shield (no longer used since patch 2.2/adaptive prismatic shield)
+        41341, // Balance of Power (implemented by hooking absorb)
         41435, // The Twin Blades of Azzinoth
         42369, // Merciless Libram of Justice
         42371, // Merciless Gladiator's Totem of the Third Wind
@@ -4424,16 +4571,29 @@ void SpellMgr::LoadSpellInfoCorrections()
         43729, // Vengeful Gladiator's Totem of the Third Wind
         43817, // Focused Assault
         44305, // You're a ...! (Effects2)
+        44586, // Prayer of Mending (unknown, unused aura type)
         45384, // Birmingham Tools Test 4
         45433, // Birmingham Tools Test 5
         46093, // Brutal Libram of Justice
         46099, // Brutal Gladiator's Totem of the Third Wind
         46705, // Honorless Target
+        49145, // Spell Deflection (Rank 1) (implemented by hooking absorb)
         49883, // Flames
         50365, // Improved Blood Presence (Rank 1)
         50371, // Improved Blood Presence (Rank 2)
+        50462, // Anti-Magic Zone (implemented by hooking absorb)
+
+        50498, // Savage Rend (Rank 1) - proc from Savage Rend moved from attack itself to autolearn aura 50871
+        53578, // Savage Rend (Rank 2)
+        53579, // Savage Rend (Rank 3)
+        53580, // Savage Rend (Rank 4)
+        53581, // Savage Rend (Rank 5)
+        53582, // Savage Rend (Rank 6)
+
         50655, // Frost Cut
         50995, // Empowered Blood Presence (Rank 1)
+        51809, // First Aid
+        53032, // Flurry of Claws
         55482, // Fire Breath (Rank 3)
         55483, // Fire Breath (Rank 4)
         55484, // Fire Breath (Rank 5)
@@ -4444,12 +4604,26 @@ void SpellMgr::LoadSpellInfoCorrections()
         60302, // Meteorite Whetstone
         60437, // Grim Toll
         60492, // Embrace of the Spider
+        62142, // Improved Chains of Ice (Rank 3)
         63024, // Gravity Bomb
+        64205, // Divine Sacrifice (handled remove in split hook)
         64772, // Comet's Trail
         65004, // Alacrity of the Elements
         65019, // Mjolnir Runestone
         65024, // Implosion
+
+        66334, // Mistress' Kiss - currently not used in script, need implement?
+        67905, // Mistress' Kiss
+        67906, // Mistress' Kiss
+        67907, // Mistress' Kiss
+
         71003, // Vegard's Touch
+
+        72151, // Frenzied Bloodthirst - currently not used in script, need implement?
+        72648, // Frenzied Bloodthirst
+        72649, // Frenzied Bloodthirst
+        72650, // Frenzied Bloodthirst
+
         72559, // Birmingham Tools Test 3
         72560, // Birmingham Tools Test 3
         72561, // Birmingham Tools Test 5
@@ -4457,6 +4631,18 @@ void SpellMgr::LoadSpellInfoCorrections()
     }, [](SpellInfo* spellInfo)
     {
         spellInfo->ProcFlags = 0;
+    });
+
+    // Shadowstep
+    ApplySpellFix({ 36563 }, [](SpellInfo* spellInfo)
+    {
+        spellInfo->Effects[EFFECT_0].RadiusEntry = sSpellRadiusStore.LookupEntry(EFFECT_RADIUS_4_YARDS); // 4yd
+    });
+
+    // Feral Charge - Cat
+    ApplySpellFix({ 49376 }, [](SpellInfo* spellInfo)
+    {
+        spellInfo->Effects[EFFECT_1].RadiusEntry = sSpellRadiusStore.LookupEntry(EFFECT_RADIUS_3_YARDS); // 3yd
     });
 
     for (uint32 i = 0; i < GetSpellInfoStoreSize(); ++i)
@@ -4494,6 +4680,11 @@ void SpellMgr::LoadSpellInfoCorrections()
                 case SPELL_EFFECT_LEAP_BACK:
                     if (!spellInfo->Speed && !spellInfo->SpellFamilyName)
                         spellInfo->Speed = SPEED_CHARGE;
+                    break;
+                case SPELL_EFFECT_APPLY_AURA:
+                    // special aura updates each 30 seconds
+                    if (spellInfo->Effects[j].ApplyAuraName == SPELL_AURA_MOD_ATTACK_POWER_OF_ARMOR)
+                        spellInfo->Effects[j].Amplitude = 30 * IN_MILLISECONDS;
                     break;
             }
 
