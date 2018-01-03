@@ -19,9 +19,9 @@ struct vip_ai : public CreatureAI {
 
     }
 
-	        void UpdateAI(uint32 diff) override {
+    void UpdateAI(uint32 diff) override {
 
-        }
+    }
 
 
     virtual bool GossipHello(Player *player) override {
@@ -71,7 +71,7 @@ struct vip_ai : public CreatureAI {
                     player->HandleEmoteCommand(EMOTE_ONESHOT_ROAR);
                 }
             } else if (action == 2) {
-		player->UpdateWeaponsSkillsToMaxSkillsForLevel();
+                player->UpdateWeaponsSkillsToMaxSkillsForLevel();
                 me->Whisper("Твои навики повышени", LANG_UNIVERSAL, player);
                 ClearGossipMenuFor(player);
                 CloseGossipMenuFor(player);
@@ -270,11 +270,10 @@ struct vip_ai : public CreatureAI {
 class example_creature : public CreatureScript {
 public:
 
-    example_creature() : CreatureScript("my_script") { }
+    example_creature() : CreatureScript("my_script") {}
 
 
-    CreatureAI* GetAI(Creature* creature) const override
-    {
+    CreatureAI *GetAI(Creature *creature) const override {
         return new vip_ai(creature);
     }
 };

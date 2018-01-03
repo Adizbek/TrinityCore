@@ -29,41 +29,38 @@ set(OPENSSL_EXPECTED_VERSION "1.0")
 set(OPENSSL_MAX_VERSION "1.1")
 
 SET(_OPENSSL_ROOT_HINTS
-  "[HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\OpenSSL (32-bit)_is1;Inno Setup: App Path]"
-  "[HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\OpenSSL (64-bit)_is1;Inno Setup: App Path]"
-  )
+        "[HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\OpenSSL (32-bit)_is1;Inno Setup: App Path]"
+        "[HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\OpenSSL (64-bit)_is1;Inno Setup: App Path]"
+        )
 
 IF(PLATFORM EQUAL 64)
   SET(_OPENSSL_ROOT_PATHS
-    "[HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\OpenSSL (64-bit)_is1;InstallLocation]"
-    "C:/OpenSSL-Win64/"
-    "C:/OpenSSL/"
-  )
+          "[HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\OpenSSL (64-bit)_is1;InstallLocation]"
+          "C:/OpenSSL-Win64/"
+          "C:/OpenSSL/"
+          )
 ELSE()
   SET(_OPENSSL_ROOT_PATHS
-    "[HKEY_LOCAL_MACHINE\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\OpenSSL (32-bit)_is1;InstallLocation]"
-    "[HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\OpenSSL (32-bit)_is1;InstallLocation]"
-    "C:/OpenSSL/"
-  )
+          "[HKEY_LOCAL_MACHINE\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\OpenSSL (32-bit)_is1;InstallLocation]"
+          "[HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\OpenSSL (32-bit)_is1;InstallLocation]"
+          "C:/OpenSSL/"
+          )
 ENDIF()
 
 FIND_PATH(OPENSSL_ROOT_DIR
-  NAMES
-    include/openssl/ssl.h
-  HINTS
-    ${_OPENSSL_ROOT_HINTS}
-  PATHS
-    ${_OPENSSL_ROOT_PATHS}
-)
+        NAMES
+        include/openssl/ssl.h
+        HINTS
+        ${_OPENSSL_ROOT_HINTS}
+        PATHS
+        ${_OPENSSL_ROOT_PATHS}
+        )
 MARK_AS_ADVANCED(OPENSSL_ROOT_DIR)
 
 # Re-use the previous path:
 FIND_PATH(OPENSSL_INCLUDE_DIR openssl/ssl.h
-  ${OPENSSL_ROOT_DIR}/include
-)
-
-SET(OPENSSL_INCLUDE_DIR /usr/local/ssl/include)
-SET(OPENSSL_LIBRARIES /usr/local/ssl/library)
+        ${OPENSSL_ROOT_DIR}/include
+        )
 
 IF(WIN32 AND NOT CYGWIN)
   # MINGW should go here too
@@ -84,43 +81,43 @@ IF(WIN32 AND NOT CYGWIN)
     # ssleay32MD.lib is identical to ../ssleay32.lib
 
     FIND_LIBRARY(LIB_EAY_DEBUG
-      NAMES
-        libeay32MDd libeay32
-      PATHS
-        ${OPENSSL_ROOT_DIR}/lib/VC
-    )
+            NAMES
+            libeay32MDd libeay32
+            PATHS
+            ${OPENSSL_ROOT_DIR}/lib/VC
+            )
 
     FIND_LIBRARY(LIB_EAY_RELEASE
-      NAMES
-        libeay32MD libeay32
-      PATHS
-        ${OPENSSL_ROOT_DIR}/lib/VC
-    )
+            NAMES
+            libeay32MD libeay32
+            PATHS
+            ${OPENSSL_ROOT_DIR}/lib/VC
+            )
 
     FIND_LIBRARY(SSL_EAY_DEBUG
-      NAMES
-        ssleay32MDd ssleay32 ssl
-      PATHS
-        ${OPENSSL_ROOT_DIR}/lib/VC
-    )
+            NAMES
+            ssleay32MDd ssleay32 ssl
+            PATHS
+            ${OPENSSL_ROOT_DIR}/lib/VC
+            )
 
     FIND_LIBRARY(SSL_EAY_RELEASE
-      NAMES
-        ssleay32MD ssleay32 ssl
-      PATHS
-        ${OPENSSL_ROOT_DIR}/lib/VC
-    )
+            NAMES
+            ssleay32MD ssleay32 ssl
+            PATHS
+            ${OPENSSL_ROOT_DIR}/lib/VC
+            )
 
     if( CMAKE_CONFIGURATION_TYPES OR CMAKE_BUILD_TYPE )
       set( OPENSSL_LIBRARIES
-        optimized ${SSL_EAY_RELEASE} ${LIB_EAY_RELEASE}
-        debug ${SSL_EAY_DEBUG} ${LIB_EAY_DEBUG}
-      )
+              optimized ${SSL_EAY_RELEASE} ${LIB_EAY_RELEASE}
+              debug ${SSL_EAY_DEBUG} ${LIB_EAY_DEBUG}
+              )
     else()
       set( OPENSSL_LIBRARIES
-        ${SSL_EAY_RELEASE}
-        ${LIB_EAY_RELEASE}
-      )
+              ${SSL_EAY_RELEASE}
+              ${LIB_EAY_RELEASE}
+              )
     endif()
 
     MARK_AS_ADVANCED(SSL_EAY_DEBUG SSL_EAY_RELEASE LIB_EAY_DEBUG LIB_EAY_RELEASE)
@@ -128,42 +125,42 @@ IF(WIN32 AND NOT CYGWIN)
 
     # same player, for MingW
     FIND_LIBRARY(LIB_EAY
-      NAMES
-        libeay32
-      PATHS
-        ${OPENSSL_ROOT_DIR}/lib/MinGW
-    )
+            NAMES
+            libeay32
+            PATHS
+            ${OPENSSL_ROOT_DIR}/lib/MinGW
+            )
 
     FIND_LIBRARY(SSL_EAY NAMES
-      NAMES
-        ssleay32
-      PATHS
-        ${OPENSSL_ROOT_DIR}/lib/MinGW
-    )
+            NAMES
+            ssleay32
+            PATHS
+            ${OPENSSL_ROOT_DIR}/lib/MinGW
+            )
 
     MARK_AS_ADVANCED(SSL_EAY LIB_EAY)
 
     set( OPENSSL_LIBRARIES
-      ${SSL_EAY}
-      ${LIB_EAY}
-    )
+            ${SSL_EAY}
+            ${LIB_EAY}
+            )
   ELSE(MSVC)
     # Not sure what to pick for -say- intel, let's use the toplevel ones and hope someone report issues:
     FIND_LIBRARY(LIB_EAY
-      NAMES
-        libeay32
-      PATHS
-        ${OPENSSL_ROOT_DIR}/lib
-        ${OPENSSL_ROOT_DIR}/lib/VC
-    )
+            NAMES
+            libeay32
+            PATHS
+            ${OPENSSL_ROOT_DIR}/lib
+            ${OPENSSL_ROOT_DIR}/lib/VC
+            )
 
     FIND_LIBRARY(SSL_EAY
-      NAMES
-        ssleay32
-      PATHS
-        ${OPENSSL_ROOT_DIR}/lib
-        ${OPENSSL_ROOT_DIR}/lib/VC
-    )
+            NAMES
+            ssleay32
+            PATHS
+            ${OPENSSL_ROOT_DIR}/lib
+            ${OPENSSL_ROOT_DIR}/lib/VC
+            )
     MARK_AS_ADVANCED(SSL_EAY LIB_EAY)
 
     SET( OPENSSL_LIBRARIES ${SSL_EAY} ${LIB_EAY} )
@@ -180,9 +177,9 @@ ENDIF(WIN32 AND NOT CYGWIN)
 if (NOT OPENSSL_INCLUDE_DIR)
   include(FindPackageHandleStandardArgs)
   find_package_handle_standard_args(OpenSSL DEFAULT_MSG
-    OPENSSL_LIBRARIES
-    OPENSSL_INCLUDE_DIR
-  )
+          OPENSSL_LIBRARIES
+          OPENSSL_INCLUDE_DIR
+          )
 endif()
 
 if (OPENSSL_INCLUDE_DIR)
@@ -192,7 +189,7 @@ if (OPENSSL_INCLUDE_DIR)
     set(OPENSSL_VERSION "${_OPENSSL_VERSION}")
   else (_OPENSSL_VERSION)
     file(STRINGS "${OPENSSL_INCLUDE_DIR}/openssl/opensslv.h" openssl_version_str
-         REGEX "^# *define[\t ]+OPENSSL_VERSION_NUMBER[\t ]+0x[0-9][0-9][0-9][0-9][0-9][0-9].*")
+            REGEX "^# *define[\t ]+OPENSSL_VERSION_NUMBER[\t ]+0x[0-9][0-9][0-9][0-9][0-9][0-9].*")
 
     # The version number is encoded as 0xMNNFFPPS: major minor fix patch status
     # The status gives if this is a developer or prerelease and is ignored here.
@@ -202,7 +199,7 @@ if (OPENSSL_INCLUDE_DIR)
     # on.
 
     string(REGEX REPLACE "^.*OPENSSL_VERSION_NUMBER[\t ]+0x([0-9a-f])([0-9a-f][0-9a-f])([0-9a-f][0-9a-f])([0-9a-f][0-9a-f])([0-9a-f]).*$"
-           "\\1;\\2;\\3;\\4;\\5" OPENSSL_VERSION_LIST "${openssl_version_str}")
+            "\\1;\\2;\\3;\\4;\\5" OPENSSL_VERSION_LIST "${openssl_version_str}")
     list(GET OPENSSL_VERSION_LIST 0 OPENSSL_VERSION_MAJOR)
     list(GET OPENSSL_VERSION_LIST 1 OPENSSL_VERSION_MINOR)
     list(GET OPENSSL_VERSION_LIST 2 OPENSSL_VERSION_FIX)
@@ -226,7 +223,7 @@ if (OPENSSL_INCLUDE_DIR)
   include(EnsureVersion)
   ENSURE_VERSION_RANGE("${OPENSSL_EXPECTED_VERSION}" "${OPENSSL_VERSION}" "${OPENSSL_MAX_VERSION}" OPENSSL_VERSION_OK)
   if (NOT OPENSSL_VERSION_OK)
-      message(FATAL_ERROR "TrinityCore needs OpenSSL version ${OPENSSL_EXPECTED_VERSION} but found too new version ${OPENSSL_VERSION}. Any version different to 1.0.x breaks TrinityCore compatibility (and we cannot fix this). Please install OpenSSL 1.0.x if you still have problems search on forum for TCE00022")
+    message(FATAL_ERROR "TrinityCore needs OpenSSL version ${OPENSSL_EXPECTED_VERSION} but found too new version ${OPENSSL_VERSION}. Any version different to 1.0.x breaks TrinityCore compatibility (and we cannot fix this). Please install OpenSSL 1.0.x if you still have problems search on forum for TCE00022")
   endif()
 endif (OPENSSL_INCLUDE_DIR)
 

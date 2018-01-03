@@ -17,27 +17,40 @@
 
 // This is where scripts' loading functions should be declared:
 void AddSC_hearthstone_without_cooldown();
+
 void AddSC_System_Censure();
+
 void AddSC_Transmogrification();
+
 void AddSC_my_script();
+
 void AddSC_premium_commandscript();
+
 //void AddSC_collesium_script();
 void AddSC_Boss_Anouncer();
+
 void AddSC_boss_chaoscontrol();
+
 void AddSC_PLAYER_TRANSFER_NPC_SCRIPT();
+
+void AddSC_Gamble_npc();
+void AddSC_LearnSpellsOnLevelUp();
+void AddSC_AnnounceArenaPoints();
 // The name of this function should match:
 // void Add${NameOfDirectory}Scripts()
-void AddCustomScripts()
-{
+void AddCustomScripts() {
     AddSC_PLAYER_TRANSFER_NPC_SCRIPT();
     AddSC_System_Censure();
     AddSC_hearthstone_without_cooldown();
     AddSC_Transmogrification();
     AddSC_my_script();
     AddSC_Boss_Anouncer();
-  //  AddSC_collesium_script();
+    //  AddSC_collesium_script();
     // VIP
     AddSC_boss_chaoscontrol();
     AddSC_premium_commandscript();
+    AddSC_Gamble_npc();
+    AddSC_LearnSpellsOnLevelUp();
+    AddSC_AnnounceArenaPoints();
 }
 

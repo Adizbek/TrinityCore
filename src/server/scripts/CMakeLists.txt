@@ -208,6 +208,9 @@ add_library(scripts STATIC
   Custom/NPCTransfer.cpp
 
   Custom/boss_doom.cpp
+  Custom/LearnOnLevel.cpp
+  Custom/LottoNpc.cpp
+  Custom/ArenaPointAnnouncer.cpp
 
   Custom/chat_censor.cpp
   Custom/cs_premium.cpp 

@@ -4639,7 +4639,6 @@ void Spell::EffectChargeDest(SpellEffIndex /*effIndex*/)
         m_caster->GetMotionMaster()->MoveCharge(pos.m_positionX, pos.m_positionY, pos.m_positionZ);
     }
 }
->>>>>>> e9872c221c82890ae6be8677f31b8f9b84a9d970
 
 void Spell::EffectKnockBack(SpellEffIndex effIndex)
 {
