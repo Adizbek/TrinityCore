@@ -96,9 +96,9 @@ struct GambleAI : public CreatureAI {
         uint32 number = urand(1, 3); //Return a random number between the range (uint32 min, uint32 max)
 
         player->PlayerTalkClass->ClearMenus();
-        if (Sender == GOSSIP_SENDER_MAIN)
+        if (Sender == 0)
             switch (action) {
-                case GOSSIP_ACTION_INFO_DEF + 6:
+                case 6:
                     if (number == 3) {
                         player->ModifyMoney(2000000); // 200g 00s 00c
 
@@ -118,7 +118,7 @@ struct GambleAI : public CreatureAI {
                     }
                     break;
 
-                case GOSSIP_ACTION_INFO_DEF + 7:
+                case 7:
                     if (number == 3) {
                         player->ModifyMoney(5000000); // 500g 00s 00c
                         ChatHandler(player->GetSession()).PSendSysMessage(
@@ -134,7 +134,7 @@ struct GambleAI : public CreatureAI {
                     }
                     break;
 
-                case GOSSIP_ACTION_INFO_DEF + 8:
+                case 8:
                     if (number == 3) {
                         player->ModifyMoney(10000000); // 1000g 00s 00c
                         ChatHandler(player->GetSession()).PSendSysMessage(
@@ -150,7 +150,7 @@ struct GambleAI : public CreatureAI {
                     }
                     break;
 
-                case GOSSIP_ACTION_INFO_DEF + 9:
+                case 9:
                     if (number == 2) {
                         player->ModifyMoney(20000000);
                         ChatHandler(player->GetSession()).PSendSysMessage(
@@ -166,7 +166,7 @@ struct GambleAI : public CreatureAI {
                     }
                     break;
 
-                case GOSSIP_ACTION_INFO_DEF + 10:
+                case 1:
                     if (number == 2) {
                         player->ModifyMoney(20000);
                         ChatHandler(player->GetSession()).PSendSysMessage("|cff00ff00Congratulations, you won 2 gold!");
@@ -181,7 +181,7 @@ struct GambleAI : public CreatureAI {
                     }
                     break;
 
-                case GOSSIP_ACTION_INFO_DEF + 11:
+                case 2:
                     if (number == 2) {
                         player->ModifyMoney(100000);
                         ChatHandler(player->GetSession()).PSendSysMessage(
@@ -198,7 +198,7 @@ struct GambleAI : public CreatureAI {
                     }
                     break;
 
-                case GOSSIP_ACTION_INFO_DEF + 12:
+                case 3:
                     if (number == 2) {
                         player->ModifyMoney(300000); // 30 gold
                         ChatHandler(player->GetSession()).PSendSysMessage(
@@ -214,7 +214,7 @@ struct GambleAI : public CreatureAI {
                     }
                     break;
 
-                case GOSSIP_ACTION_INFO_DEF + 13:
+                case 4:
                     if (number == 2) {
                         player->ModifyMoney(500000);
                         ChatHandler(player->GetSession()).PSendSysMessage(
@@ -230,7 +230,7 @@ struct GambleAI : public CreatureAI {
                     }
                     break;
 
-                case GOSSIP_ACTION_INFO_DEF + 14:
+                case 5:
                     if (number == 2) {
                         player->ModifyMoney(1000000);
                         ChatHandler(player->GetSession()).PSendSysMessage(
@@ -262,7 +262,7 @@ struct GambleAI : public CreatureAI {
                     }
                     break;
 
-                case GOSSIP_ACTION_INFO_DEF + 20:
+                case 0:
                     if (number == 2) {
                         player->ModifyMoney(10000);
                         ChatHandler(player->GetSession()).PSendSysMessage("|cff00ff00Congratulations, you won 1 gold!");
